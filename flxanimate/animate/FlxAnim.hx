@@ -77,7 +77,7 @@ class FlxAnim implements IFlxDestroyable
 	 */
 	public var finished(get, never):Bool;
 
-	public var reversed(get, set):Bool;
+	public var isAtEnd(get, never):Bool;
 	/**
 	 * a reverse option where the animation plays backwards or not.
 	 */
@@ -683,7 +683,7 @@ class FlxAnim implements IFlxDestroyable
 			return value;
 	}
 
-	public function getByName(name:String):SymbolStuff
+	public function getByName(name:String)
 	{
 		return animsMap.get(name);
 	}
