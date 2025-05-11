@@ -1,5 +1,6 @@
 package flxanimate.frames;
 
+import flixel.util.FlxSort;
 import flixel.FlxG;
 import flixel.graphics.FlxGraphic;
 import flixel.graphics.frames.FlxAtlasFrames;

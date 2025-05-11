@@ -1,5 +1,7 @@
 package flxanimate;
 
+import openfl.geom.Matrix;
+import flixel.math.FlxAngle;
 import openfl.geom.Point;
 import flxanimate.interfaces.IFilterable;
 import openfl.display.BlendMode;
@@ -230,6 +232,7 @@ class FlxAnimate extends FlxSprite
 
 		_flashRect.setEmpty();
 
+	updateSkewMatrix();
 
 		parseElement(anim.curInstance, _matrix, colorTransform, cameras, scrollFactor);
 
@@ -645,17 +648,26 @@ class FlxAnimate extends FlxSprite
 		{
 			var matrix = _mat;
 			matrix.identity();
+			matrix.translate(-limb.offset.x, -limb.offset.y);
 			limb.prepareMatrix(matrix);
 			matrix.concat(_matrix);
 
 			if (camera == null || !camera.visible || !camera.exists)
 				return;
 
+			if (matrixExposed)
+			{
+				matrix.concat(transformMatrix);
+			}
+			else
+			{
+				matrix.concat(_skewMatrix);
+			}
 
 			if (!filterin)
 			{
 				getScreenPosition(_point, camera).subtractPoint(offset);
-				if (limb != _pivot && limb != _indicator)
+				if (!showPivot && limb != _pivot && limb != _indicator)
 				{
 					matrix.translate(-origin.x, -origin.y);
 
@@ -724,6 +736,33 @@ class FlxAnimate extends FlxSprite
 		#end
 	}
 
+	public var skew(default, null):FlxPoint = FlxPoint.get();
+
+	static var _skewMatrix:FlxMatrix = new FlxMatrix();
+
+		/**
+	 * Tranformation matrix for this sprite.
+	 * Used only when matrixExposed is set to true
+	 */
+	public var transformMatrix(default, null):Matrix = new Matrix();
+
+	/**
+	 * Bool flag showing whether transformMatrix is used for rendering or not.
+	 * False by default, which means that transformMatrix isn't used for rendering
+	 */
+	public var matrixExposed:Bool = false;
+
+	function updateSkewMatrix():Void
+	{
+		_skewMatrix.identity();
+
+		if (skew.x != 0 || skew.y != 0)
+		{
+			_skewMatrix.b = Math.tan(skew.y * FlxAngle.TO_RAD);
+			_skewMatrix.c = Math.tan(skew.x * FlxAngle.TO_RAD);
+		}
+	}
+
 	function limbOnScreen(limb:FlxFrame, m:FlxMatrix, ?Camera:FlxCamera = null)
 	{
 		if (Camera == null)
@@ -759,6 +798,8 @@ class FlxAnimate extends FlxSprite
 		// if (audio != null)
 		// 	audio.destroy();
 		// #end
+		anim = FlxDestroyUtil.destroy(anim);
+		skew = FlxDestroyUtil.put(skew);
 		super.destroy();
 	}
 

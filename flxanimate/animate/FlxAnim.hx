@@ -21,7 +21,17 @@ import flixel.system.FlxSound;
 #end
 #end
 
-typedef SymbolStuff = {var instance:FlxElement; var frameRate:Float;};
+class FlxSymbolAnimation {
+	public var instance:FlxElement;
+	public var frameRate:Float;
+
+	public var onFinish:FlxTypedSignal<Void->Void> = new FlxTypedSignal();
+
+	public function new(instance:FlxElement, frameRate:Float) {
+		this.instance = instance;
+		this.frameRate = frameRate;
+	}
+}
 typedef ClickStuff = {
 	?OnClick:Void->Void,
 	?OnRelease:Void->Void
@@ -50,6 +60,8 @@ class FlxAnim implements IFlxDestroyable
 	 */
 	public var curInstance:FlxElement;
 
+	public var curAnimation:FlxSymbolAnimation;
+
 	/**
 	 * Metadata. shortcut to display the name of the document and the default framerate.
 	 */
@@ -64,6 +76,8 @@ class FlxAnim implements IFlxDestroyable
 	 * Whether the animation has finished or not.
 	 */
 	public var finished(get, never):Bool;
+
+	public var reversed(get, set):Bool;
 	/**
 	 * a reverse option where the animation plays backwards or not.
 	 */
@@ -116,7 +130,7 @@ class FlxAnim implements IFlxDestroyable
 	public var curFrame(get, set):Int;
 
 
-	var animsMap:Map<String, SymbolStuff> = new Map();
+	var animsMap:Map<String, FlxSymbolAnimation> = new Map();
 
 	/**
 	 *  The looping method of `curSymbol`.
@@ -300,6 +314,7 @@ class FlxAnim implements IFlxDestroyable
 				Force = (Force || curInstance != curThing.instance);
 
 				curInstance = curThing.instance;
+				curAnimation = curThing;
 			}
 		}
 
@@ -427,7 +442,10 @@ class FlxAnim implements IFlxDestroyable
 	}
 	function get_finished()
 	{
-		return (loopType == PlayOnce) && (reversed && curFrame == 0 || !reversed && curFrame >= length - 1);
+		return (loopType == PlayOnce) && isAtEnd;
+	}
+	inline function get_isAtEnd() {
+		return (reversed && curFrame == 0 || !reversed && curFrame >= length - 1);
 	}
 	function get_curFrame()
 	{
@@ -475,7 +493,7 @@ class FlxAnim implements IFlxDestroyable
 			}
 		}
 		if (params.symbol.name != null)
-			animsMap.set(Name, {instance: params, frameRate: FrameRate});
+			animsMap.set(Name, new FlxSymbolAnimation(params, FrameRate));
 		else
 			FlxG.log.error('No symbol was found with the name $SymbolName!');
 	}
@@ -543,7 +561,7 @@ class FlxAnim implements IFlxDestroyable
 		symbolDictionary.set(symbol.name, symbol);
 
 
-		animsMap.set(Name, {instance: params, frameRate: FrameRate});
+		animsMap.set(Name, new FlxSymbolAnimation(params, FrameRate));
 	}
 
 
@@ -565,7 +583,7 @@ class FlxAnim implements IFlxDestroyable
 	{
 		symbolDictionary.set(Name, new FlxSymbol(haxe.io.Path.withoutDirectory(Name), Timeline));
 		var params = new FlxElement(new SymbolParameters((Looped) ? Loop : PlayOnce));
-		animsMap.set(Name, {instance: params, frameRate: FrameRate});
+		animsMap.set(Name, new FlxSymbolAnimation(params, FrameRate));
 	}
 
 	public function get_length():Int
