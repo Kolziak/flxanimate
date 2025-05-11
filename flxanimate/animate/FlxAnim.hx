@@ -26,6 +26,7 @@ class FlxSymbolAnimation {
 	public var frameRate:Float;
 
 	public var onFinish:FlxTypedSignal<Void->Void> = new FlxTypedSignal();
+	public var onFinishEnd:FlxTypedSignal<String->Void> = new FlxTypedSignal();
 
 	public function new(instance:FlxElement, frameRate:Float) {
 		this.instance = instance;
@@ -99,7 +100,7 @@ class FlxAnim implements IFlxDestroyable
 	/**
 	 * When ever the animation is playing.
 	 */
-	public var isPlaying(default, null):Bool;
+	public var isPlaying(default, null):Bool = false;
 
 	/**
 	 * A signal dispatched when the animation's over,
@@ -113,6 +114,7 @@ class FlxAnim implements IFlxDestroyable
 	 */
 	public var onFrame:FlxTypedSignal<Int->Void> = new FlxTypedSignal();
 
+	public var onFinishEnd:FlxTypedSignal<String->Void> = new FlxTypedSignal();
 	/**
 	 * The framerate of the current animation.
 	 */
@@ -161,7 +163,7 @@ class FlxAnim implements IFlxDestroyable
 	var _parent:FlxAnimate;
 
 
-	var _tick:Float;
+	var _tick:Float = 0;
 
 	/**
 	 * Creates a new `FlxAnim` instance.
@@ -170,9 +172,7 @@ class FlxAnim implements IFlxDestroyable
 	 */
 	public function new(parent:FlxAnimate, ?coolParsed:AnimAtlas)
 	{
-		_tick = 0;
 		_parent = parent;
-		isPlaying = false;
 		if (coolParsed != null) _loadAtlas(coolParsed);
 	}
 	@:allow(flxanimate.FlxAnimate)
@@ -413,11 +413,42 @@ class FlxAnim implements IFlxDestroyable
 		}
 	}
 
+		inline function _doFinishedEndCallback():Void
+	{
+		if (curAnimation != null)
+			curAnimation.onFinishEnd.dispatch();
+		onFinishEnd.dispatch(_frameFinishedName);
+	}
+
+	/**
+	 * Internal, used to wait the frameDuration at the end of the animation.
+	 */
+	var _frameFinishedEndTimer:Float = 0;
+
+	var _frameFinishedName:String = null;
+
 	public function update(elapsed:Float)
 	{
 		if (curInstance != null)
 			curInstance.updateRender(elapsed * timeScale #if (flixel >= "5.5.0") * FlxG.animationTimeScale #end, curFrame, symbolDictionary, swfRender);
-		if (frameDelay == 0 || !isPlaying || finished) return;
+		if (!isPlaying)
+			return;
+		if (_frameFinishedEndTimer > 0)
+		{
+			_frameFinishedEndTimer -= elapsed * timeScale;
+			if (_frameFinishedEndTimer <= 0)
+			{
+				if (curInstance != null && curInstance.symbol != null && curInstance.symbol.name != _frameFinishedName)
+				{
+					_frameFinishedEndTimer = 0;
+					_doFinishedEndCallback();
+				}
+			}
+		}
+		if (finished)
+			return;
+		if (frameDelay == 0)
+			return;
 
 		_tick += elapsed * timeScale #if (flixel >= "5.5.0") * FlxG.animationTimeScale #end;
 
@@ -438,6 +469,12 @@ class FlxAnim implements IFlxDestroyable
 				pause();
 
 			onComplete.dispatch();
+		}
+
+		if(finished){
+			_frameFinishedEndTimer = frameDelay;
+			if (curInstance != null && curInstance.symbol != null)
+			_frameFinishedName = curInstance.symbol.name;
 		}
 	}
 	function get_finished()
